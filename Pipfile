@@ -25,6 +25,7 @@ giphypop = "*"
 tzlocal = "*"
 nest_asyncio = "*"
 sqlalchemy = ">=1.4,<2.0"
+sqlalchemy_schemadisplay = "*"
 
 [dev-packages]
 pylint = "*"

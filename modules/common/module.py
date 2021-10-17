@@ -145,7 +145,7 @@ class SubBotModule(BotModule):
 
     def _load_subcommands(self):
         self.sub_commands = set([x for x in dir(self)
-                                if getattr(getattr(self, x),'_is_subcommand', None)])
+                                if getattr(getattr(self, x), '_is_subcommand', None)])
 
     def __get_command(self, name):
         name = self.sub_command_aliases.get(name) or name
@@ -155,7 +155,8 @@ class SubBotModule(BotModule):
         # Dispatch to subcommand functions:
         args = event.body.split()
         args.pop(0)
-        if len(args) > 0 and args[0] in self.sub_commands:
+        if len(args) > 0 and args[0] in \
+           self.sub_commands.union(set(self.sub_command_aliases.keys())):
             await self.__get_command(args[0])(bot, room, event, args)
             return
         else:
