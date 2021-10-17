@@ -1,5 +1,6 @@
 import logging
 from abc import ABC, abstractmethod
+import inspect
 
 from nio import RoomMessageText, MatrixRoom
 
@@ -133,3 +134,54 @@ class BotModule(ABC):
 
     def disable(self):
         self.enabled = False
+
+class SubBotModule(BotModule):
+    """BotModule that can handle sub commands with help system"""
+
+    def __init__(self, name):
+        super().__init__(name)
+        self.sub_commands = set()
+        self.sub_command_aliases = {'help': 'module_help'}
+
+    def _load_subcommands(self):
+        self.sub_commands = set([x for x in dir(self)
+                                if getattr(getattr(self, x),'_is_subcommand', None)])
+
+    def __get_command(self, name):
+        name = self.sub_command_aliases.get(name) or name
+        return getattr(self, name)
+
+    async def matrix_message(self, bot, room, event):
+        # Dispatch to subcommand functions:
+        args = event.body.split()
+        args.pop(0)
+        if len(args) > 0 and args[0] in self.sub_commands:
+            await self.__get_command(args[0])(bot, room, event, args)
+            return
+        else:
+            await self.module_help(bot, room, event, args)
+
+    async def module_help(self, bot, room, event, args):
+        """Print this help screen"""
+        if len(args) > 0 and args[0] == "help":
+            args.pop(0)
+        help_text = []
+        if len(args) == 0:
+            # Print main help:
+            help_text.append("Subcommands :")
+            help_text.append("---------------")
+            commands = self.sub_commands.union(self.sub_command_aliases.keys())
+            longest_name = len(max(commands, key=len))
+            for cmd in commands:
+                doc_short = self.__get_command(cmd).__doc__.splitlines()[0]
+                help_text.append(f'{cmd :{longest_name}} - {doc_short}')
+        else:
+            # Print subcommand help:
+            help_text.append(inspect.cleandoc(self.__get_command(args[0]).__doc__))
+        await bot.send_text(room, "\n".join(help_text))
+
+    @classmethod
+    def subcommand(cls, func):
+        """Decorator to mark BotModule methods as subcommands"""
+        func._is_subcommand = True
+        return func
