@@ -35,15 +35,50 @@ class MatrixModule(BotModule):
             if last_roll:
                 dice = last_roll
             else:
-                await bot.send_text(room, "Invalid dice notation")
-                return
+                dice = "1d6"
 
-        total, results = roll(dice)
+        try:
+            total, results = roll(dice)
+        except:
+            await bot.send_text(room, "Invalid dice notation")
+            return
         update_last_roll(user.user_id, dice)
-        await bot.send_text(room, f"@{user.display_name} {dice} = {pretty_results(results)} = {total}")
+        await bot.send_text(room, f"@{user.display_name} {dice} = {pretty_results(results, total)}")
 
     def help(self):
         return 'Echoes back what user has said'
+
+def roll(dice):
+    die_pattern = re.compile("^(?P<count>\\d*)d(?P<value>\\d+)((?P<mod>[\-\+])(?P<mod_val>\\d+))?$")
+    results = []
+    total = 0
+    for die in re.split("\s+", dice.replace("\\s", "")):
+        if die == "+":
+            continue
+        search = die_pattern.search(die)
+        count = search.group("count")
+        count = int(count) if count else 1
+        value = int(search.group("value"))
+        mod_val = int(search.group("mod_val") or "0")
+        if mod_val > 0 and search.group("mod") == "-":
+            mod_val = -1 * mod_val
+        res = []
+        for d in range(count):
+            res.append(random.randrange(value) + 1)
+        results.append(res)
+        total += sum(res) + mod_val
+    if len(results) == 1:
+        results = results[0]
+    return (total, results)
+
+def pretty_results(results, total):
+    if len(results) > 1:
+        results = '+'.join((str(x) for x in results))
+        results = results.replace("[","(").replace("]",")").replace(", ","+")
+        results += f" = {total}"
+    else:
+        results = results[0]
+    return results
 
 ##################################################
 ## Database
@@ -89,31 +124,3 @@ def update_last_roll(user_id, last_roll):
         s.add(user_roll)
         s.commit()
 
-def roll(dice):
-    pattern = re.compile("(?P<count>\\d*)d(?P<value>\\d+)")
-    results = []
-    total = 0
-    for die in re.split("\s+", dice.replace("\\s", "")):
-        if die == "+":
-            continue
-        search = pattern.search(die)
-        count = search.group("count")
-        count = int(count) if count else 1
-        value = int(search.group("value"))
-        res = []
-        for d in range(count):
-            res.append(random.randrange(value) + 1)
-        results.append(res)
-        total += sum(res)
-    if len(results) == 1:
-        results = results[0]
-    return (total, results)
-
-def pretty_results(results):
-    if len(results) > 1:
-        results = '+'.join((str(x) for x in results))
-        results = results.replace("[","(").replace("]",")")
-        results = results.replace(", ","+")
-    else:
-        results = results[0]
-    return results
