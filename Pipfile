@@ -24,6 +24,7 @@ pillow = "*"
 giphypop = "*"
 tzlocal = "*"
 nest_asyncio = "*"
+sqlalchemy = ">=1.4,<2.0"
 
 [dev-packages]
 pylint = "*"
